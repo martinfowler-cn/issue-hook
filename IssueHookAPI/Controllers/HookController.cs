@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using IssueHookAPI.Services;
@@ -41,10 +42,10 @@ namespace IssueHookAPI.Controllers
             
             if (data["action"].ToString() == "created")
             {
+                //Cmd_Accept
                 if (string.Equals(data["comment"]["body"].ToString(), CONSTS.Command.Cmd_Accept, StringComparison.CurrentCultureIgnoreCase)
                     && !data["issue"]["assignee"].HasValues)
                 {
-
                     var repositoryId = int.Parse(data["repository"]["id"].ToString());
                     var issueNumber = int.Parse(data["issue"]["number"].ToString());
                     
@@ -57,6 +58,41 @@ namespace IssueHookAPI.Controllers
 
                     GitHubServices.Instance.UpdateIssue(repositoryId, issueNumber, updateDefi);
                 }
+                //Cmd_Pushed
+                if (string.Equals(data["comment"]["body"].ToString(), CONSTS.Command.Cmd_Pushed, StringComparison.CurrentCultureIgnoreCase))
+                {
+                    var repositoryId = int.Parse(data["repository"]["id"].ToString());
+                    var issueNumber = int.Parse(data["issue"]["number"].ToString());
+                    
+                    var targetIssue = GitHubServices.Instance.GetIssuebyId(
+                        repositoryId, issueNumber);
+                    if (targetIssue.Labels.FirstOrDefault(x => x.Name == CONSTS.Label.Label_Translating) != null)
+                    {
+                        var updateDefi = targetIssue.ToUpdate();
+                        updateDefi.RemoveLabel(CONSTS.Label.Label_Translating);
+                        updateDefi.AddLabel(CONSTS.Label.Label_Pushed);
+
+                        GitHubServices.Instance.UpdateIssue(repositoryId, issueNumber, updateDefi);
+                    }
+                }    
+                //Cmd_Merged
+                if (string.Equals(data["comment"]["body"].ToString(), CONSTS.Command.Cmd_Merged, StringComparison.CurrentCultureIgnoreCase))
+                {
+                    var repositoryId = int.Parse(data["repository"]["id"].ToString());
+                    var issueNumber = int.Parse(data["issue"]["number"].ToString());
+                    
+                    var targetIssue = GitHubServices.Instance.GetIssuebyId(
+                        repositoryId, issueNumber);
+                    if (targetIssue.Labels.FirstOrDefault(x => x.Name == CONSTS.Label.Label_Pushed) != null)
+                    {
+                        var updateDefi = targetIssue.ToUpdate();
+                        updateDefi.RemoveLabel(CONSTS.Label.Label_Pushed);
+                        updateDefi.AddLabel(CONSTS.Label.Label_Finished);
+                        updateDefi.State = ItemState.Closed;
+
+                        GitHubServices.Instance.UpdateIssue(repositoryId, issueNumber, updateDefi);
+                    }
+                }                  
             }
 
             return Ok();

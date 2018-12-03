@@ -8,8 +8,8 @@ namespace IssueHookAPI.Services
         private GitHubClient client;
         private GitHubServices()
         {
-            client = new GitHubClient(new ProductHeaderValue("my-cool-app"));
-            var tokenAuth = new Credentials("e3289c00a8b3fa49eb677277229ff18074376945"); // NOTE: not real token
+            client = new GitHubClient(new ProductHeaderValue("TransBroker"));
+            var tokenAuth = new Credentials("e4804bb4dad02fa54c62ac98eecdb8bf73575566"); // NOTE: not real token
             client.Credentials = tokenAuth;
         }
 
