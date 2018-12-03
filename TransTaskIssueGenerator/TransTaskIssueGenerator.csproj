@@ -11,6 +11,9 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Compile Include="..\IssueHookAPI\CONSTS.cs">
+        <Link>CONSTS.cs</Link>
+      </Compile>
       <Compile Include="..\IssueHookAPI\Services\GitHubServices.cs">
         <Link>GitHubServices.cs</Link>
       </Compile>

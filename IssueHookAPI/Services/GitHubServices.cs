@@ -13,9 +13,9 @@ namespace IssueHookAPI.Services
             client.Credentials = tokenAuth;
         }
 
-        public Issue CreateIssue(int repositoryId,NewIssue issue)
+        public Issue CreateIssue(NewIssue issue)
         {
-            return client.Issue.Create(repositoryId,issue).Result;                 
+            return client.Issue.Create("martinfowler-cn","trans-tasks",issue).Result;                 
         }
 
         public Issue GetIssuebyId(int repositoryId, int issueNumber)
@@ -39,7 +39,19 @@ namespace IssueHookAPI.Services
 
             request.State = ItemState.Open | ItemState.Closed;
             request.PerPage = 30;
-            var repos = await client.Search.SearchIssues(request);            
+            var issuesResult = client.Search.SearchIssues(request).Result;
+            if (issuesResult.TotalCount > 0)
+            {
+                foreach (var issue in issuesResult.Items)
+                {
+                    if (issue.Body.StartsWith(href))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }

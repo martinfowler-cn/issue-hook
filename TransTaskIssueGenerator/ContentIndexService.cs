@@ -7,6 +7,9 @@ using AngleSharp;
 using AngleSharp.Dom.Html;
 using AngleSharp.Extensions;
 using AngleSharp.Parser.Html;
+using IssueHookAPI;
+using IssueHookAPI.Services;
+using Octokit;
 
 namespace TransTaskIssueGenerator
 {
@@ -27,6 +30,7 @@ namespace TransTaskIssueGenerator
             var tags = document.QuerySelectorAll("div.tags p a");
             foreach (var item in tags)
             {
+                Console.WriteLine("Current Tag Page Downloading========================>{0}",item.TextContent);
                 if (item.TextContent == "All Content")
                 {
                     Console.WriteLine("All Content ,Ignore");
@@ -93,7 +97,28 @@ namespace TransTaskIssueGenerator
 
         public void CreateIssue()
         {
-            
+            foreach (var asset in _Contents)
+            {
+                if (!GitHubServices.Instance.IsIssueExist(asset.Value.Title, asset.Value.Href))
+                {
+                    var newIssue = new NewIssue(asset.Value.Title)
+                    {
+                        Body =
+                            $"{asset.Value.Href}\n{asset.Value.Title}\n{asset.Value.Credits}\n{asset.Value.Date}\n{asset.Value.Credits}"
+                    };
+                    foreach (var tag in asset.Value.Tags)
+                    {
+                        newIssue.Labels.Add(tag);
+                    }
+                    newIssue.Labels.Add(CONSTS.Label.Label_Welcome);
+                    var createdIssue = GitHubServices.Instance.CreateIssue(newIssue);
+                    Console.WriteLine("Issue Created: #{0}",createdIssue.Number);
+                }
+                else
+                {
+                    Console.WriteLine("Issue already exists: {0},{1}",asset.Value.Title,asset.Value.Href);
+                }
+            }
         }
     }
 }

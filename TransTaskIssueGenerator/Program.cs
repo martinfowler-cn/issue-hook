@@ -7,6 +7,7 @@ namespace TransTaskIssueGenerator
         static void Main(string[] args)
         {
              ContentIndexService.Instance.BuildIndex();
+             ContentIndexService.Instance.CreateIssue();
         }
     }
 }
