@@ -27,5 +27,19 @@ namespace IssueHookAPI.Services
         {
             return client.Issue.Update(repositoryId, issueId, issueUpdate).Result;
         }
+
+        public bool IsIssueExist(string title, string href)
+        {
+            var request = new SearchIssuesRequest(title);
+            request.Repos.Add("martinfowler-cn/trans-tasks");
+            request.In = new[] {
+                IssueInQualifier.Title
+            };
+            request.Type = IssueTypeQualifier.Issue;
+
+            request.State = ItemState.Open | ItemState.Closed;
+            request.PerPage = 30;
+            var repos = await client.Search.SearchIssues(request);            
+        }
     }
 }
