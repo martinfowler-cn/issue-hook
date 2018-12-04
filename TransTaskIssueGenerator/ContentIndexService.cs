@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection.Metadata.Ecma335;
@@ -9,6 +10,7 @@ using AngleSharp.Extensions;
 using AngleSharp.Parser.Html;
 using IssueHookAPI;
 using IssueHookAPI.Services;
+using Newtonsoft.Json;
 using Octokit;
 
 namespace TransTaskIssueGenerator
@@ -16,7 +18,10 @@ namespace TransTaskIssueGenerator
     public class ContentIndexService
     {
         public static readonly ContentIndexService Instance = new ContentIndexService();
+        private string contentsJsonFileName = "Contents.json";
+        private string contentsCreatedJsonFileName = "ContentsCreated.json";
         private Dictionary<string, TransAsset> _Contents = new Dictionary<string, TransAsset>();
+        private Dictionary<string, TransAsset> _ContentsCreated = new Dictionary<string, TransAsset>();
         private string[] _canTransTypes = new[] {"article", "bliki",null};
         private ContentIndexService()
         {
@@ -24,6 +29,13 @@ namespace TransTaskIssueGenerator
 
         public void BuildIndex()
         {
+            if ( string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DONOTCACHECONTENTINDEX")) && File.Exists(contentsJsonFileName))
+            {
+                _Contents = JsonConvert.DeserializeObject<Dictionary<string, TransAsset>>(File.ReadAllText(contentsJsonFileName));
+                Console.WriteLine("[WARN]Contents.json Exist, Use Cache Index Directly.");
+                return;
+            }
+            
             var config = Configuration.Default.WithDefaultLoader();
             var document =  BrowsingContext.New(config).OpenAsync("https://martinfowler.com/tags/").Result;            
            
@@ -45,7 +57,7 @@ namespace TransTaskIssueGenerator
                     asset.Title = title.FirstChild.Text();
                     asset.Href = (title.Children[0]as IHtmlAnchorElement).Href;
                     var metaElement = title.NextElementSibling;
-                    while (metaElement != null)
+                    while (metaElement != null && metaElement.TagName.ToLower() != "h2")
                     {
                         if(metaElement.ClassList.Contains("credits"))
                         {
@@ -91,34 +103,61 @@ namespace TransTaskIssueGenerator
                     }
                 }
             }
+
+            File.WriteAllText(contentsJsonFileName,JsonConvert.SerializeObject(_Contents));
             
             Console.WriteLine("Summary: item count {0}",_Contents.Count);
         }
 
         public void CreateIssue()
         {
+            if (File.Exists(contentsCreatedJsonFileName))
+            {
+                _ContentsCreated = JsonConvert.DeserializeObject<Dictionary<string, TransAsset>>(File.ReadAllText(contentsCreatedJsonFileName));
+                Console.WriteLine("[WARN]ContentsCreated.json Exist, Will pass any issue in that list.");
+                return;
+            }            
+            
+            
             foreach (var asset in _Contents)
             {
-                if (!GitHubServices.Instance.IsIssueExist(asset.Value.Title, asset.Value.Href))
+                if (!_ContentsCreated.ContainsKey(asset.Key) &&
+                    !GitHubServices.Instance.IsIssueExist(asset.Value.Title, asset.Value.Href))
                 {
                     var newIssue = new NewIssue(asset.Value.Title)
                     {
                         Body =
-                            $"{asset.Value.Href}\n{asset.Value.Title}\n{asset.Value.Credits}\n{asset.Value.Date}\n{asset.Value.Credits}"
+                            $"{asset.Value.Href}\n{asset.Value.Title}\n{asset.Value.Credits}\n{asset.Value.Date}\n{asset.Value.Abstract}"
                     };
                     foreach (var tag in asset.Value.Tags)
                     {
                         newIssue.Labels.Add(tag);
                     }
+
+                    if (!string.IsNullOrEmpty(asset.Value.Type))
+                    {
+                        newIssue.Labels.Add(asset.Value.Type);
+                    }
                     newIssue.Labels.Add(CONSTS.Label.Label_Welcome);
                     var createdIssue = GitHubServices.Instance.CreateIssue(newIssue);
+                    _ContentsCreated.Add(asset.Key,asset.Value);
                     Console.WriteLine("Issue Created: #{0}",createdIssue.Number);
                 }
                 else
                 {
+                    if (!_ContentsCreated.ContainsKey(asset.Key))
+                    {
+                        _ContentsCreated.Add(asset.Key,asset.Value);
+                    }
                     Console.WriteLine("Issue already exists: {0},{1}",asset.Value.Title,asset.Value.Href);
                 }
+
+                GitHubServices.Instance.CheckAPIRateLimit();
             }
+            
+            File.WriteAllText(contentsCreatedJsonFileName,JsonConvert.SerializeObject(_ContentsCreated));
         }
+
+
     }
 }

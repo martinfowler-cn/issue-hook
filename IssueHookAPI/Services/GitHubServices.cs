@@ -1,3 +1,5 @@
+using System;
+using System.Threading;
 using Octokit;
 
 namespace IssueHookAPI.Services
@@ -6,10 +8,14 @@ namespace IssueHookAPI.Services
     {
         public static readonly GitHubServices Instance = new GitHubServices();
         private GitHubClient client;
+        
+//        private bool EnsureDistinctIssue = true;
+        private bool EnsureDistinctIssue = false; //WARN: Only Uncomment this line when you understand the meaning behind.
+        
         private GitHubServices()
         {
             client = new GitHubClient(new ProductHeaderValue("TransBroker"));
-            var tokenAuth = new Credentials("e4804bb4dad02fa54c62ac98eecdb8bf73575566"); // NOTE: not real token
+            var tokenAuth = new Credentials(Environment.GetEnvironmentVariable("GITHUB_PERSONAL_TOKEN"));
             client.Credentials = tokenAuth;
         }
 
@@ -30,6 +36,11 @@ namespace IssueHookAPI.Services
 
         public bool IsIssueExist(string title, string href)
         {
+            if (!EnsureDistinctIssue)
+            {
+                return false;
+            }
+            
             var request = new SearchIssuesRequest(title);
             request.Repos.Add("martinfowler-cn/trans-tasks");
             request.In = new[] {
@@ -37,7 +48,6 @@ namespace IssueHookAPI.Services
             };
             request.Type = IssueTypeQualifier.Issue;
 
-            request.State = ItemState.Open | ItemState.Closed;
             request.PerPage = 30;
             var issuesResult = client.Search.SearchIssues(request).Result;
             if (issuesResult.TotalCount > 0)
@@ -53,5 +63,33 @@ namespace IssueHookAPI.Services
 
             return false;
         }
+        
+        public void CheckAPIRateLimit()
+        {
+            var miscellaneousRateLimit = client.Miscellaneous.GetRateLimits().Result;
+            var coreRateLimit = miscellaneousRateLimit.Resources.Core;
+            var howManyCoreRequestsCanIMakePerHour = coreRateLimit.Limit;
+            var howManyCoreRequestsDoIHaveLeft = coreRateLimit.Remaining;
+            var whenDoesTheCoreLimitReset = coreRateLimit.Reset; // UTC time
+
+            // the "search" object provides your rate limit status for the Search API.
+            var searchRateLimit = miscellaneousRateLimit.Resources.Search;
+
+            var howManySearchRequestsCanIMakePerMinute = searchRateLimit.Limit;
+            var howManySearchRequestsDoIHaveLeft = searchRateLimit.Remaining;
+            var whenDoesTheSearchLimitReset = searchRateLimit.Reset; // UTC time            
+
+            Console.WriteLine("API Limit Status: Total:{0} Left:{1}",howManySearchRequestsCanIMakePerMinute,howManySearchRequestsDoIHaveLeft);
+            if (howManySearchRequestsDoIHaveLeft < 5)
+            {
+                Console.WriteLine("API Search Limit Threshold Reached. Current Time: {0} Time to wait: {1} sec",
+                    DateTime.Now.ToString(), whenDoesTheSearchLimitReset.ToLocalTime().ToString());
+                var sleepTicks = whenDoesTheSearchLimitReset.LocalDateTime.Ticks - DateTime.Now.Ticks;
+                if (sleepTicks > 0)
+                {
+                    Thread.Sleep(TimeSpan.FromTicks(sleepTicks));
+                }
+            }
+        }        
     }
 }
