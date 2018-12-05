@@ -9,8 +9,8 @@ namespace IssueHookAPI.Services
         public static readonly GitHubServices Instance = new GitHubServices();
         private GitHubClient client;
         
-//        private bool EnsureDistinctIssue = true;
-        private bool EnsureDistinctIssue = false; //WARN: Only Uncomment this line when you understand the meaning behind.
+        private bool EnsureDistinctIssue = true;
+//        private bool EnsureDistinctIssue = false; //WARN: Only Uncomment this line when you understand the meaning behind.
         
         private GitHubServices()
         {
@@ -80,7 +80,7 @@ namespace IssueHookAPI.Services
             var whenDoesTheSearchLimitReset = searchRateLimit.Reset; // UTC time            
 
             Console.WriteLine("API Limit Status: Total:{0} Left:{1}",howManySearchRequestsCanIMakePerMinute,howManySearchRequestsDoIHaveLeft);
-            if (howManySearchRequestsDoIHaveLeft < 5)
+            if (howManySearchRequestsDoIHaveLeft <=1)
             {
                 Console.WriteLine("API Search Limit Threshold Reached. Current Time: {0} Time to wait: {1} sec",
                     DateTime.Now.ToString(), whenDoesTheSearchLimitReset.ToLocalTime().ToString());
@@ -88,6 +88,10 @@ namespace IssueHookAPI.Services
                 if (sleepTicks > 0)
                 {
                     Thread.Sleep(TimeSpan.FromTicks(sleepTicks));
+                }
+                else
+                {
+                    Thread.Sleep(TimeSpan.FromSeconds(15));
                 }
             }
         }        

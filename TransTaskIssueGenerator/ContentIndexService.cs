@@ -116,11 +116,18 @@ namespace TransTaskIssueGenerator
                 _ContentsCreated = JsonConvert.DeserializeObject<Dictionary<string, TransAsset>>(File.ReadAllText(contentsCreatedJsonFileName));
                 Console.WriteLine("[WARN]ContentsCreated.json Exist, Will pass any issue in that list.");
                 return;
-            }            
-            
-            
+            }
+
+            int icount = 0;
             foreach (var asset in _Contents)
             {
+                icount++;
+                if (icount <= 300)
+                {
+                    Console.WriteLine("[Bypass] - ",asset.Value.Title);
+                    continue;
+                }
+                
                 if (!_ContentsCreated.ContainsKey(asset.Key) &&
                     !GitHubServices.Instance.IsIssueExist(asset.Value.Title, asset.Value.Href))
                 {
