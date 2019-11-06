@@ -10,7 +10,7 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.App" Version="2.1.13" />
-        <PackageReference Include="Microsoft.AspNetCore.Razor.Design" PrivateAssets="All" />
+        <PackageReference Include="Microsoft.AspNetCore.Razor.Design" PrivateAssets="All" Version="2.1.2" />
         <PackageReference Include="Microsoft.AspNetCore.WebHooks.Receivers.GitHub" Version="1.0.0-preview2-final" />
         <PackageReference Include="Octokit" Version="0.32.0" />
     </ItemGroup>
